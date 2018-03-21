@@ -220,7 +220,7 @@ exports.hotp.verifyDelta = function hotpVerifyDelta (options) {
     // domain-specific constant-time comparison for integer codes
     if (parseInt(exports.hotp(options), 10) === token) {
       // found a matching code, return delta
-      return {delta: i - counter};
+      return {delta: i - counter, timeRemaining: options.timeRemaining};
     }
   }
 
@@ -282,8 +282,11 @@ exports._counter = function _counter (options) {
   // also accepts 'initial_time', but deprecated
   var epoch = (options.epoch != null ? (options.epoch * 1000) : (options.initial_time * 1000)) || 0;
   if (options.initial_time != null) console.warn('Speakeasy - Deprecation Notice - Specifying the epoch using `initial_time` is no longer supported. Use `epoch` instead.');
+  var counter = (time - epoch) / step / 1000;
+  var stepMs = step * 1000;
+  var timeRemaining = stepMs - (counter - Math.floor(counter)) * stepMs;
 
-  return Math.floor((time - epoch) / step / 1000);
+  return {counter: Math.floor(counter), timeRemaining: timeRemaining};
 };
 
 /**
@@ -335,7 +338,11 @@ exports.totp = function totpGenerate (options) {
   }
 
   // calculate default counter value
-  if (options.counter == null) options.counter = exports._counter(options);
+  if (options.counter == null) {
+    var counter = exports._counter(options);
+    options.counter = counter.counter;
+    options.timeRemaining = counter.timeRemaining;
+  }
 
   // pass to hotp
   return this.hotp(options);
@@ -403,7 +410,11 @@ exports.totp.verifyDelta = function totpVerifyDelta (options) {
   var window = parseInt(options.window, 10) || 0;
 
   // calculate default counter value
-  if (options.counter == null) options.counter = exports._counter(options);
+  if (options.counter == null) {
+    var counter = exports._counter(options);
+    options.counter = counter.counter;
+    options.timeRemaining = counter.timeRemaining;
+  }
 
   // adjust for two-sided window
   options.counter -= window;
